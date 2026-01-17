@@ -2,149 +2,691 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Бункер</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 Бункер - Игра в роли</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #000; color: white; font-family: Arial; min-height: 100vh; }
-        .header { width: 100%; height: 33vh; overflow: hidden; }
-        .header img { width: 100%; height: 100%; object-fit: cover; }
-        .content { padding: 20px; text-align: center; }
+        /* ЧЕРНЫЙ ФОН И КАРТИНКА СВЕРХУ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         
-        /* Сообщения */
-        .message { padding: 10px; margin: 10px auto; max-width: 600px; border-radius: 5px; }
-        .error { background: #330000; color: #ff6666; border: 1px solid #660000; }
-        .success { background: #003300; color: #66ff66; border: 1px solid #006600; }
-        .info { background: #003366; color: #66aaff; border: 1px solid #0066cc; }
+        body {
+            background-color: #000000;
+            color: white;
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+        }
+        
+        /* Картинка сверху на 1/3 экрана */
+        .header-image {
+            width: 100%;
+            height: 33vh; /* Треть экрана */
+            background: #222;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .header-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        /* Основной контент */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: #fff;
+            text-align: center;
+        }
+        
+        h2 {
+            color: #4CAF50;
+            margin: 30px 0 15px 0;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
         
         /* Кнопки */
-        .btn { display: inline-block; padding: 12px 24px; margin: 10px; 
-               background: #007bff; color: white; text-decoration: none; 
-               border-radius: 5px; font-size: 16px; cursor: pointer; border: none; }
-        .btn:hover { background: #0056cc; }
-        .btn-create { background: #28a745; }
-        .btn-create:hover { background: #1e7e34; }
-        .btn-logout { background: #dc3545; }
-        .btn-logout:hover { background: #c82333; }
+        .btn {
+            display: inline-block;
+            background: #4CAF50;
+            color: white;
+            padding: 14px 28px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
         
-        /* Форма создания комнаты */
-        .create-room-form { max-width: 500px; margin: 30px auto; padding: 20px; 
-                            background: #222; border-radius: 10px; }
-        .create-room-form input { width: 70%; padding: 10px; margin-right: 10px; 
-                                  background: #333; border: 1px solid #444; 
-                                  color: white; border-radius: 5px; }
+        .btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
         
-        /* Список комнат */
-        .rooms-container { max-width: 800px; margin: 30px auto; }
-        .room-section { background: #1a1a1a; border-radius: 10px; padding: 20px; margin: 20px 0; }
-        .room-section h3 { color: #007bff; margin-bottom: 15px; }
-        .room-card { background: #222; padding: 15px; margin: 10px 0; 
-                     border-radius: 8px; border-left: 4px solid #007bff; }
-        .room-card h4 { margin: 0 0 10px 0; color: #ddd; }
-        .room-card p { margin: 5px 0; color: #aaa; font-size: 14px; }
-        .room-actions { margin-top: 10px; }
-        .room-link { display: inline-block; background: #333; color: #ddd; 
-                     padding: 8px 15px; border-radius: 5px; margin-right: 10px; 
-                     font-size: 14px; text-decoration: none; }
-        .room-link:hover { background: #444; }
+        .btn-register {
+            background: #2196F3;
+        }
         
-        /* Для неавторизованных */
-        .auth-buttons { margin-top: 40px; }
+        .btn-register:hover {
+            background: #0b7dda;
+        }
+        
+        /* Формы */
+        .form-container {
+            background: #1a1a1a;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 1px solid #333;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #ccc;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: white;
+            font-size: 16px;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        
+        /* Роли */
+        .roles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .role-card {
+            background: #222;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        /* Сообщения */
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .alert-success {
+            background: #1b5e20;
+            color: #a5d6a7;
+            border: 1px solid #2e7d32;
+        }
+        
+        .alert-error {
+            background: #5d0000;
+            color: #ff8a8a;
+            border: 1px solid #c62828;
+        }
+        
+        /* Футер */
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            color: #666;
+            border-top: 1px solid #333;
+        }
+        
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 15px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .btn {
+                padding: 12px 24px;
+                font-size: 16px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcReJrukummfeWNALFc6zotq8HDzXDRq8siX0g&s" alt="Бункер">
+    <!-- Картинка сверху -->
+    <div class="header-image">
+        <img src="https://images.unsplash.com/photo-1585208798170-4332c8c64c85?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80" 
+             alt="Человек в противогазе у бункера">
+        <div class="header-overlay">
+            <h1>🎮 БУНКЕР</h1>
+            <p style="color: #ccc; font-size: 1.2rem;">Игра в роли с друзьями</p>
+        </div>
     </div>
     
-    <div class="content">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="message {{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+    <div class="container">
+        <!-- Приветствие -->
+        <div style="text-align: center; margin-bottom: 40px;">
+            <h2>Добро пожаловать в игру!</h2>
+            <p style="color: #aaa; font-size: 1.1rem; line-height: 1.6;">
+                Создавайте комнаты, приглашайте друзей, получайте случайные роли и играйте вместе!
+            </p>
+        </div>
         
-        {% if username %}
-            <!-- Приветствие и кнопка выхода -->
-            <h1>Добро пожаловать, {{ username }}!</h1>
-            <a href="/logout" class="btn btn-logout">Выйти</a>
-            
-            <!-- Форма создания комнаты -->
-            <div class="create-room-form">
-                <h2>Создать комнату</h2>
-                <form method="POST" action="/create_room">
-                    <input type="text" name="room_name" placeholder="Название комнаты" required>
-                    <button type="submit" class="btn btn-create">Создать комнату</button>
-                </form>
-                <p style="color: #888; margin-top: 10px;">
-                    Создайте комнату и пригласите друзей
-                </p>
+        <!-- Кнопки входа/регистрации -->
+        <div style="text-align: center; margin: 40px 0;">
+            <button class="btn btn-register" onclick="showRegister()">📝 Регистрация</button>
+            <button class="btn" onclick="showLogin()">🔑 Вход</button>
+        </div>
+        
+        <!-- Форма регистрации (скрыта по умолчанию) -->
+        <div id="register-form" class="form-container" style="display: none;">
+            <h2>Регистрация</h2>
+            <div class="form-group">
+                <label for="username">Имя пользователя:</label>
+                <input type="text" id="username" placeholder="Введите ваш никнейм" required>
             </div>
             
-            <!-- Мои комнаты -->
-            {% if my_rooms %}
-            <div class="rooms-container">
-                <div class="room-section">
-                    <h3>🎮 Мои комнаты</h3>
-                    {% for room in my_rooms %}
-                    <div class="room-card">
-                        <h4>{{ room[1] }}</h4>
-                        <p>ID: {{ room[0] }}</p>
-                        <div class="room-actions">
-                            <a href="/room/{{ room[0] }}" class="room-link">Войти</a>
-                            <a href="/join/{{ room[0] }}" class="room-link">Ссылка для друзей</a>
-                        </div>
-                    </div>
-                    {% endfor %}
+            <div class="form-group">
+                <label for="password">Пароль:</label>
+                <input type="password" id="password" placeholder="Не менее 6 символов" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="confirm-password">Подтвердите пароль:</label>
+                <input type="password" id="confirm-password" placeholder="Повторите пароль" required>
+            </div>
+            
+            <button class="btn" onclick="register()">Зарегистрироваться</button>
+            <button class="btn" style="background: #666;" onclick="hideForms()">Отмена</button>
+            
+            <div id="register-message" class="alert" style="display: none;"></div>
+        </div>
+        
+        <!-- Форма входа (скрыта по умолчанию) -->
+        <div id="login-form" class="form-container" style="display: none;">
+            <h2>Вход в систему</h2>
+            <div class="form-group">
+                <label for="login-username">Имя пользователя:</label>
+                <input type="text" id="login-username" placeholder="Ваш никнейм" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="login-password">Пароль:</label>
+                <input type="password" id="login-password" placeholder="Ваш пароль" required>
+            </div>
+            
+            <button class="btn" onclick="login()">Войти</button>
+            <button class="btn" style="background: #666;" onclick="hideForms()">Отмена</button>
+            
+            <div id="login-message" class="alert" style="display: none;"></div>
+        </div>
+        
+        <!-- Список ролей -->
+        <div class="form-container">
+            <h2>🎭 Доступные роли (6)</h2>
+            <div class="roles-grid">
+                <div class="role-card">👨‍🍳 Повар</div>
+                <div class="role-card">👮 Полицейский</div>
+                <div class="role-card">👨‍🔬 Ученый</div>
+                <div class="role-card">👨‍🔬 Биолог</div>
+                <div class="role-card">👨‍🔬 Физик</div>
+                <div class="role-card">🏃 Спортсмен</div>
+            </div>
+        </div>
+        
+        <!-- Как играть -->
+        <div class="form-container">
+            <h2>📖 Как играть?</h2>
+            <ol style="color: #ccc; line-height: 1.8; padding-left: 20px;">
+                <li>Зарегистрируйтесь или войдите</li>
+                <li>Создайте комнату или присоединитесь к существующей</li>
+                <li>Пригласите друзей (отправьте им ссылку на комнату)</li>
+                <li>Когда все собрались - начните игру</li>
+                <li>Каждый получит случайную роль</li>
+                <li>Играйте по своим ролям!</li>
+            </ol>
+        </div>
+        
+        <!-- Комнаты (появится после входа) -->
+        <div id="rooms-section" style="display: none;">
+            <div class="form-container">
+                <h2>🎮 Ваши комнаты</h2>
+                <div id="rooms-list"></div>
+                
+                <div style="margin-top: 30px;">
+                    <h3>Создать новую комнату:</h3>
+                    <input type="text" id="room-name" placeholder="Название комнаты" style="margin-bottom: 15px;">
+                    <button class="btn" onclick="createRoom()">Создать комнату</button>
                 </div>
             </div>
-            {% endif %}
-            
-            <!-- Комнаты где я участник -->
-            {% if joined_rooms %}
-            <div class="rooms-container">
-                <div class="room-section">
-                    <h3>👥 Участвую в комнатах</h3>
-                    {% for room in joined_rooms %}
-                    <div class="room-card">
-                        <h4>{{ room[1] }}
-                            {% if room[3] %}
-                            <span style="color: #28a745; font-size: 12px;">🎮 Игра идет</span>
-                            {% endif %}
-                        </h4>
-                        <p>Создал: {{ room[2] }} | ID: {{ room[0] }}</p>
-                        <div class="room-actions">
-                            <a href="/room/{{ room[0] }}" class="room-link">Войти</a>
-                            <a href="/leave_room/{{ room[0] }}" class="room-link" style="background: #660000;">Покинуть</a>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-            
-            {% if not my_rooms and not joined_rooms %}
-            <div style="margin: 40px 0; color: #888;">
-                <p>У вас еще нет комнат. Создайте первую!</p>
-            </div>
-            {% endif %}
-            
-        {% else %}
-            <!-- Для неавторизованных -->
-            <h1>Бункер</h1>
-            <p style="color: #aaa; margin: 20px 0;">Игра в роли с друзьями</p>
-            
-            <div class="auth-buttons">
-                <a href="/register" class="btn">Регистрация</a>
-                <a href="/login" class="btn">Вход</a>
-            </div>
-            
-            <div style="margin-top: 50px; color: #666; max-width: 600px; margin-left: auto; margin-right: auto;">
-                <h3>🎭 6 ролей:</h3>
-                <p>Повар, Полицейский, Ученый, Биолог, Физик, Спортсмен</p>
-            </div>
-        {% endif %}
+        </div>
     </div>
+    
+    <footer>
+        <p>🎮 Бункер - Игра в роли | Данные сохраняются в вашем браузере</p>
+        <p>Чтобы играть на разных устройствах - используйте один и тот же логин/пароль</p>
+    </footer>
+
+    <script>
+        // Храним пользователей в localStorage
+        const ROLES = ["👨‍🍳 Повар", "👮 Полицейский", "👨‍🔬 Ученый", "👨‍🔬 Биолог", "👨‍🔬 Физик", "🏃 Спортсмен"];
+        
+        // Проверяем, вошел ли пользователь
+        function checkAuth() {
+            const user = localStorage.getItem('currentUser');
+            if (user) {
+                showRooms();
+            }
+        }
+        
+        // Показать форму регистрации
+        function showRegister() {
+            document.getElementById('register-form').style.display = 'block';
+            document.getElementById('login-form').style.display = 'none';
+        }
+        
+        // Показать форму входа
+        function showLogin() {
+            document.getElementById('login-form').style.display = 'block';
+            document.getElementById('register-form').style.display = 'none';
+        }
+        
+        // Скрыть все формы
+        function hideForms() {
+            document.getElementById('register-form').style.display = 'none';
+            document.getElementById('login-form').style.display = 'none';
+        }
+        
+        // Регистрация
+        function register() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const confirm = document.getElementById('confirm-password').value;
+            const message = document.getElementById('register-message');
+            
+            // Проверки
+            if (username.length < 3) {
+                showMessage(message, 'Имя должно быть от 3 символов', 'error');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showMessage(message, 'Пароль должен быть от 6 символов', 'error');
+                return;
+            }
+            
+            if (password !== confirm) {
+                showMessage(message, 'Пароли не совпадают', 'error');
+                return;
+            }
+            
+            // Сохраняем пользователя
+            const users = JSON.parse(localStorage.getItem('bunker_users') || '{}');
+            
+            if (users[username]) {
+                showMessage(message, 'Пользователь уже существует', 'error');
+                return;
+            }
+            
+            users[username] = {
+                password: password,
+                created: new Date().toISOString(),
+                rooms: []
+            };
+            
+            localStorage.setItem('bunker_users', JSON.stringify(users));
+            localStorage.setItem('currentUser', username);
+            
+            showMessage(message, '✅ Регистрация успешна!', 'success');
+            
+            // Очищаем поля
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('confirm-password').value = '';
+            
+            // Показываем комнаты через 2 секунды
+            setTimeout(() => {
+                hideForms();
+                showRooms();
+            }, 2000);
+        }
+        
+        // Вход
+        function login() {
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+            const message = document.getElementById('login-message');
+            
+            const users = JSON.parse(localStorage.getItem('bunker_users') || '{}');
+            
+            if (users[username] && users[username].password === password) {
+                localStorage.setItem('currentUser', username);
+                showMessage(message, '✅ Вход выполнен!', 'success');
+                
+                setTimeout(() => {
+                    hideForms();
+                    showRooms();
+                }, 1500);
+            } else {
+                showMessage(message, '❌ Неверный логин или пароль', 'error');
+            }
+        }
+        
+        // Показать комнаты
+        function showRooms() {
+            const user = localStorage.getItem('currentUser');
+            if (!user) return;
+            
+            document.getElementById('rooms-section').style.display = 'block';
+            loadRooms();
+        }
+        
+        // Создать комнату
+        function createRoom() {
+            const user = localStorage.getItem('currentUser');
+            if (!user) {
+                alert('Сначала войдите в систему!');
+                return;
+            }
+            
+            const roomName = document.getElementById('room-name').value || `Комната ${user}`;
+            const roomId = 'room_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            
+            // Сохраняем комнату
+            const rooms = JSON.parse(localStorage.getItem('bunker_rooms') || '{}');
+            rooms[roomId] = {
+                name: roomName,
+                owner: user,
+                members: [user],
+                gameStarted: false,
+                roles: {},
+                createdAt: new Date().toISOString()
+            };
+            
+            localStorage.setItem('bunker_rooms', JSON.stringify(rooms));
+            
+            // Показываем ссылку
+            const roomUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+            
+            alert(`🎮 Комната создана!\n\nНазвание: ${roomName}\n\nСсылка для друзей:\n${roomUrl}\n\nСкопируйте ссылку и отправьте друзьям!`);
+            
+            document.getElementById('room-name').value = '';
+            loadRooms();
+        }
+        
+        // Загрузить комнаты
+        function loadRooms() {
+            const user = localStorage.getItem('currentUser');
+            const rooms = JSON.parse(localStorage.getItem('bunker_rooms') || '{}');
+            const roomsList = document.getElementById('rooms-list');
+            
+            roomsList.innerHTML = '';
+            
+            let hasRooms = false;
+            
+            Object.entries(rooms).forEach(([id, room]) => {
+                if (room.members.includes(user)) {
+                    hasRooms = true;
+                    const roomDiv = document.createElement('div');
+                    roomDiv.style.background = '#2a2a2a';
+                    roomDiv.style.padding = '15px';
+                    roomDiv.style.margin = '10px 0';
+                    roomDiv.style.borderRadius = '8px';
+                    roomDiv.style.borderLeft = '4px solid #4CAF50';
+                    
+                    roomDiv.innerHTML = `
+                        <h3 style="margin: 0 0 10px 0;">${room.name} ${room.owner === user ? '👑' : ''}</h3>
+                        <p style="color: #aaa; margin: 5px 0;">Участников: ${room.members.length}/6</p>
+                        <p style="color: #aaa; margin: 5px 0;">Создатель: ${room.owner}</p>
+                        <p style="color: ${room.gameStarted ? '#4CAF50' : '#ff9800'}; margin: 5px 0;">
+                            ${room.gameStarted ? '🎮 Игра идет' : '⏳ Ожидание'}
+                        </p>
+                        <button onclick="enterRoom('${id}')" 
+                                style="background: #2196F3; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; margin-top: 10px;">
+                            Войти в комнату
+                        </button>
+                        ${room.owner === user ? `
+                            <button onclick="shareRoom('${id}')" 
+                                    style="background: #9C27B0; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; margin-top: 10px; margin-left: 10px;">
+                                📋 Копировать ссылку
+                            </button>
+                        ` : ''}
+                    `;
+                    
+                    roomsList.appendChild(roomDiv);
+                }
+            });
+            
+            if (!hasRooms) {
+                roomsList.innerHTML = '<p style="color: #666; text-align: center;">У вас еще нет комнат. Создайте первую!</p>';
+            }
+        }
+        
+        // Войти в комнату
+        function enterRoom(roomId) {
+            window.location.href = `?room=${roomId}`;
+        }
+        
+        // Поделиться комнатой
+        function shareRoom(roomId) {
+            const roomUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+            navigator.clipboard.writeText(roomUrl).then(() => {
+                alert('✅ Ссылка скопирована в буфер обмена! Отправьте друзьям.');
+            }).catch(() => {
+                prompt('Скопируйте эту ссылку:', roomUrl);
+            });
+        }
+        
+        // Показать сообщение
+        function showMessage(element, text, type) {
+            element.textContent = text;
+            element.className = `alert alert-${type}`;
+            element.style.display = 'block';
+        }
+        
+        // Проверяем параметры URL
+        function checkUrlParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomId = urlParams.get('room');
+            
+            if (roomId) {
+                showRoomPage(roomId);
+            }
+        }
+        
+        // Показать страницу комнаты
+        function showRoomPage(roomId) {
+            const rooms = JSON.parse(localStorage.getItem('bunker_rooms') || '{}');
+            const room = rooms[roomId];
+            const user = localStorage.getItem('currentUser');
+            
+            if (!room) {
+                document.body.innerHTML = `
+                    <div style="text-align: center; padding: 100px 20px;">
+                        <h1 style="color: white;">Комната не найдена</h1>
+                        <a href="?" style="color: #4CAF50; font-size: 18px;">Вернуться на главную</a>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Если пользователь не в комнате - добавляем
+            if (user && !room.members.includes(user)) {
+                room.members.push(user);
+                localStorage.setItem('bunker_rooms', JSON.stringify(rooms));
+            }
+            
+            // Генерируем страницу комнаты
+            document.body.innerHTML = `
+                <div class="header-image">
+                    <img src="https://images.unsplash.com/photo-1585208798170-4332c8c64c85?w=1200&q=80" alt="Бункер">
+                    <div class="header-overlay">
+                        <h1>🎮 ${room.name}</h1>
+                        <p style="color: #ccc;">Комната ID: ${roomId.substr(0, 10)}...</p>
+                    </div>
+                </div>
+                
+                <div class="container">
+                    <div class="form-container">
+                        <h2>${room.name}</h2>
+                        <p><strong>Создатель:</strong> ${room.owner} ${room.owner === user ? '(Вы)' : ''}</p>
+                        <p><strong>Участников:</strong> ${room.members.length}/6</p>
+                        <p><strong>Статус:</strong> ${room.gameStarted ? '🎮 Игра идет' : '⏳ Ожидание игроков'}</p>
+                        
+                        ${room.owner === user && !room.gameStarted ? `
+                            <button onclick="startGame('${roomId}')" 
+                                    style="background: #4CAF50; color: white; border: none; padding: 15px 30px; border-radius: 8px; font-size: 18px; cursor: pointer; margin: 20px 0; width: 100%;">
+                                🎮 НАЧАТЬ ИГРУ
+                            </button>
+                        ` : ''}
+                        
+                        ${room.gameStarted && room.roles[user] ? `
+                            <div style="background: #1b5e20; padding: 25px; border-radius: 10px; margin: 25px 0; text-align: center;">
+                                <h3>🎭 Ваша роль:</h3>
+                                <h1 style="color: #ffd700; font-size: 2.5rem; margin: 15px 0;">${room.roles[user]}</h1>
+                                <p style="color: #a5d6a7;">Держите свою роль в секрете!</p>
+                            </div>
+                        ` : room.gameStarted && !room.roles[user] ? `
+                            <button onclick="getRole('${roomId}')" 
+                                    style="background: #2196F3; color: white; border: none; padding: 15px 30px; border-radius: 8px; font-size: 18px; cursor: pointer; margin: 20px 0; width: 100%;">
+                                🔍 УЗНАТЬ СВОЮ РОЛЬ
+                            </button>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="form-container">
+                        <h2>👥 Участники комнаты (${room.members.length})</h2>
+                        <div id="members-list">
+                            ${room.members.map(member => `
+                                <div style="background: #2a2a2a; padding: 12px; margin: 8px 0; border-radius: 6px; border-left: 4px solid ${member === room.owner ? '#ff9800' : '#4CAF50'};">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div>
+                                            <strong>${member}</strong>
+                                            ${member === room.owner ? ' 👑' : ''}
+                                            ${member === user ? ' (Вы)' : ''}
+                                        </div>
+                                        ${room.gameStarted && room.roles[member] && (member === user || room.owner === user) ? `
+                                            <span style="background: #333; padding: 4px 10px; border-radius: 4px; font-size: 14px;">
+                                                ${room.roles[member]}
+                                            </span>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 40px;">
+                        <a href="?" style="display: inline-block; background: #666; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 5px;">
+                            ← На главную
+                        </a>
+                        <button onclick="shareRoom('${roomId}')" 
+                                style="background: #9C27B0; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; margin: 5px;">
+                            📋 Копировать ссылку
+                        </button>
+                    </div>
+                </div>
+                
+                <script>
+                    function startGame(roomId) {
+                        const rooms = JSON.parse(localStorage.getItem('bunker_rooms') || '{}');
+                        const room = rooms[roomId];
+                        
+                        if (room.members.length < 2) {
+                            alert('Для начала игры нужно минимум 2 участника!');
+                            return;
+                        }
+                        
+                        if (room.members.length > ${ROLES.length}) {
+                            alert('Слишком много участников! Максимум ${ROLES.length} человек.');
+                            return;
+                        }
+                        
+                        // Перемешиваем роли
+                        const shuffledRoles = [...${JSON.stringify(ROLES)}].sort(() => Math.random() - 0.5);
+                        
+                        // Распределяем роли
+                        room.members.forEach((member, index) => {
+                            if (index < shuffledRoles.length) {
+                                room.roles[member] = shuffledRoles[index];
+                            }
+                        });
+                        
+                        room.gameStarted = true;
+                        rooms[roomId] = room;
+                        localStorage.setItem('bunker_rooms', JSON.stringify(rooms));
+                        
+                        location.reload();
+                    }
+                    
+                    function getRole(roomId) {
+                        const rooms = JSON.parse(localStorage.getItem('bunker_rooms') || '{}');
+                        const room = rooms[roomId];
+                        const user = '${user}';
+                        
+                        if (room.roles[user]) {
+                            location.reload();
+                        } else {
+                            alert('Роль еще не назначена!');
+                        }
+                    }
+                    
+                    function shareRoom(roomId) {
+                        const roomUrl = window.location.origin + window.location.pathname + '?room=' + roomId;
+                        navigator.clipboard.writeText(roomUrl).then(() => {
+                            alert('✅ Ссылка скопирована! Отправьте друзьям.');
+                        });
+                    }
+                </script>
+            `;
+        }
+        
+        // При загрузке страницы
+        window.onload = function() {
+            checkAuth();
+            checkUrlParams();
+        };
+    </script>
 </body>
 </html>
