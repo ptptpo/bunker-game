@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Бункер</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; color: white; font-family: Arial; min-height: 100vh; }
+        .header { width: 100%; height: 33vh; overflow: hidden; }
+        .header img { width: 100%; height: 100%; object-fit: cover; }
+        .content { padding: 20px; text-align: center; }
+        
+        /* Сообщения */
+        .message { padding: 10px; margin: 10px auto; max-width: 600px; border-radius: 5px; }
+        .error { background: #330000; color: #ff6666; border: 1px solid #660000; }
+        .success { background: #003300; color: #66ff66; border: 1px solid #006600; }
+        .info { background: #003366; color: #66aaff; border: 1px solid #0066cc; }
+        
+        /* Кнопки */
+        .btn { display: inline-block; padding: 12px 24px; margin: 10px; 
+               background: #007bff; color: white; text-decoration: none; 
+               border-radius: 5px; font-size: 16px; cursor: pointer; border: none; }
+        .btn:hover { background: #0056cc; }
+        .btn-create { background: #28a745; }
+        .btn-create:hover { background: #1e7e34; }
+        .btn-logout { background: #dc3545; }
+        .btn-logout:hover { background: #c82333; }
+        
+        /* Форма создания комнаты */
+        .create-room-form { max-width: 500px; margin: 30px auto; padding: 20px; 
+                            background: #222; border-radius: 10px; }
+        .create-room-form input { width: 70%; padding: 10px; margin-right: 10px; 
+                                  background: #333; border: 1px solid #444; 
+                                  color: white; border-radius: 5px; }
+        
+        /* Список комнат */
+        .rooms-container { max-width: 800px; margin: 30px auto; }
+        .room-section { background: #1a1a1a; border-radius: 10px; padding: 20px; margin: 20px 0; }
+        .room-section h3 { color: #007bff; margin-bottom: 15px; }
+        .room-card { background: #222; padding: 15px; margin: 10px 0; 
+                     border-radius: 8px; border-left: 4px solid #007bff; }
+        .room-card h4 { margin: 0 0 10px 0; color: #ddd; }
+        .room-card p { margin: 5px 0; color: #aaa; font-size: 14px; }
+        .room-actions { margin-top: 10px; }
+        .room-link { display: inline-block; background: #333; color: #ddd; 
+                     padding: 8px 15px; border-radius: 5px; margin-right: 10px; 
+                     font-size: 14px; text-decoration: none; }
+        .room-link:hover { background: #444; }
+        
+        /* Для неавторизованных */
+        .auth-buttons { margin-top: 40px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcReJrukummfeWNALFc6zotq8HDzXDRq8siX0g&s" alt="Бункер">
+    </div>
+    
+    <div class="content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="message {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {% if username %}
+            <!-- Приветствие и кнопка выхода -->
+            <h1>Добро пожаловать, {{ username }}!</h1>
+            <a href="/logout" class="btn btn-logout">Выйти</a>
+            
+            <!-- Форма создания комнаты -->
+            <div class="create-room-form">
+                <h2>Создать комнату</h2>
+                <form method="POST" action="/create_room">
+                    <input type="text" name="room_name" placeholder="Название комнаты" required>
+                    <button type="submit" class="btn btn-create">Создать комнату</button>
+                </form>
+                <p style="color: #888; margin-top: 10px;">
+                    Создайте комнату и пригласите друзей
+                </p>
+            </div>
+            
+            <!-- Мои комнаты -->
+            {% if my_rooms %}
+            <div class="rooms-container">
+                <div class="room-section">
+                    <h3>🎮 Мои комнаты</h3>
+                    {% for room in my_rooms %}
+                    <div class="room-card">
+                        <h4>{{ room[1] }}</h4>
+                        <p>ID: {{ room[0] }}</p>
+                        <div class="room-actions">
+                            <a href="/room/{{ room[0] }}" class="room-link">Войти</a>
+                            <a href="/join/{{ room[0] }}" class="room-link">Ссылка для друзей</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Комнаты где я участник -->
+            {% if joined_rooms %}
+            <div class="rooms-container">
+                <div class="room-section">
+                    <h3>👥 Участвую в комнатах</h3>
+                    {% for room in joined_rooms %}
+                    <div class="room-card">
+                        <h4>{{ room[1] }}
+                            {% if room[3] %}
+                            <span style="color: #28a745; font-size: 12px;">🎮 Игра идет</span>
+                            {% endif %}
+                        </h4>
+                        <p>Создал: {{ room[2] }} | ID: {{ room[0] }}</p>
+                        <div class="room-actions">
+                            <a href="/room/{{ room[0] }}" class="room-link">Войти</a>
+                            <a href="/leave_room/{{ room[0] }}" class="room-link" style="background: #660000;">Покинуть</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if not my_rooms and not joined_rooms %}
+            <div style="margin: 40px 0; color: #888;">
+                <p>У вас еще нет комнат. Создайте первую!</p>
+            </div>
+            {% endif %}
+            
+        {% else %}
+            <!-- Для неавторизованных -->
+            <h1>Бункер</h1>
+            <p style="color: #aaa; margin: 20px 0;">Игра в роли с друзьями</p>
+            
+            <div class="auth-buttons">
+                <a href="/register" class="btn">Регистрация</a>
+                <a href="/login" class="btn">Вход</a>
+            </div>
+            
+            <div style="margin-top: 50px; color: #666; max-width: 600px; margin-left: auto; margin-right: auto;">
+                <h3>🎭 6 ролей:</h3>
+                <p>Повар, Полицейский, Ученый, Биолог, Физик, Спортсмен</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
