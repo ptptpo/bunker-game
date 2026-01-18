@@ -79,13 +79,27 @@
         .refresh-btn:hover {
             background: #0b7dda;
         }
+        
+        /* Стили для загрузки */
+        .loader {
+            border: 3px solid #333;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
     <div id="app">
         <!-- Приложение загружается здесь -->
     </div>
-    <div id="notification" class="notification"></div>
 
     <script>
         // === ИГРА БУНКЕР ===
@@ -96,7 +110,6 @@
             // Кодировать в base64 (работает с кириллицей)
             encode: function(str) {
                 try {
-                    // Кодируем в UTF-8, затем в base64
                     return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, 
                         function toSolidBytes(match, p1) {
                             return String.fromCharCode('0x' + p1);
@@ -141,12 +154,15 @@
             // Сохранить комнату в localStorage
             saveRoom: function(room) {
                 try {
+                    // Обновляем timestamp
+                    room.lastUpdated = Date.now();
+                    
                     // Кодируем комнату для хранения
                     const encoded = Encoder.encodeObject(room);
                     localStorage.setItem('room_' + room.id, encoded);
                     
-                    // Также сохраняем комнату в списке комнат
-                    this.saveRoomToList(room);
+                    // Сохраняем в список комнат
+                    this.saveRoomToList(room.id);
                     
                     return encoded;
                 } catch (e) {
@@ -156,10 +172,10 @@
             },
             
             // Сохранить комнату в списке
-            saveRoomToList: function(room) {
+            saveRoomToList: function(roomId) {
                 const roomsList = this.getRoomsList();
-                if (!roomsList.includes(room.id)) {
-                    roomsList.push(room.id);
+                if (!roomsList.includes(roomId)) {
+                    roomsList.push(roomId);
                     localStorage.setItem('rooms_list', JSON.stringify(roomsList));
                 }
             },
@@ -187,6 +203,12 @@
                 }
             },
             
+            // Получить timestamp последнего обновления комнаты
+            getRoomTimestamp: function(roomId) {
+                const room = this.loadRoom(roomId);
+                return room ? room.lastUpdated : 0;
+            },
+            
             // Удалить комнату
             deleteRoom: function(roomId) {
                 localStorage.removeItem('room_' + roomId);
@@ -198,76 +220,17 @@
                     roomsList.splice(index, 1);
                     localStorage.setItem('rooms_list', JSON.stringify(roomsList));
                 }
-                
-                // Удаляем локальное хранилище комнаты
-                this.clearRoomStorage(roomId);
-            },
-            
-            // === ЛОКАЛЬНОЕ ХРАНИЛИЩЕ КОМНАТЫ ===
-            saveToRoomStorage: function(roomId, key, value) {
-                const storageKey = `room_${roomId}_storage`;
-                try {
-                    // Загружаем текущее хранилище комнаты
-                    const currentStorage = localStorage.getItem(storageKey);
-                    const storage = currentStorage ? JSON.parse(currentStorage) : {};
-                    
-                    // Сохраняем значение
-                    if (!storage[key]) {
-                        storage[key] = [];
-                    }
-                    
-                    // Проверяем, есть ли уже такое значение
-                    const valueIndex = storage[key].indexOf(value);
-                    if (valueIndex === -1) {
-                        storage[key].push(value);
-                    }
-                    
-                    localStorage.setItem(storageKey, JSON.stringify(storage));
-                    return true;
-                } catch (e) {
-                    console.error('Ошибка сохранения в хранилище комнаты:', e);
-                    return false;
-                }
-            },
-            
-            // Получить данные из хранилища комнаты
-            getFromRoomStorage: function(roomId, key) {
-                const storageKey = `room_${roomId}_storage`;
-                try {
-                    const storage = localStorage.getItem(storageKey);
-                    if (!storage) return [];
-                    
-                    const parsed = JSON.parse(storage);
-                    return parsed[key] || [];
-                } catch (e) {
-                    console.error('Ошибка загрузки из хранилища комнаты:', e);
-                    return [];
-                }
-            },
-            
-            // Очистить хранилище комнаты
-            clearRoomStorage: function(roomId) {
-                localStorage.removeItem(`room_${roomId}_storage`);
             },
             
             // Сохранить имя игрока для комнаты
             savePlayerToRoom: function(roomId, playerName) {
-                // Сохраняем в основное хранилище
                 localStorage.setItem('player_' + roomId, playerName);
-                
-                // Также сохраняем в локальное хранилище комнаты
-                this.saveToRoomStorage(roomId, 'players', playerName);
                 return true;
             },
             
             // Загрузить имя игрока для комнаты
             loadPlayerFromRoom: function(roomId) {
                 return localStorage.getItem('player_' + roomId);
-            },
-            
-            // Получить всех игроков комнаты из хранилища
-            getRoomPlayers: function(roomId) {
-                return this.getFromRoomStorage(roomId, 'players');
             },
             
             // Получить все комнаты создателя
@@ -279,7 +242,6 @@
                     try {
                         const room = this.loadRoom(roomId);
                         if (room) {
-                            // Проверяем, является ли текущий пользователь создателем
                             const myName = this.loadPlayerFromRoom(roomId);
                             if (room.creator === myName) {
                                 rooms.push(room);
@@ -301,7 +263,6 @@
                     try {
                         const room = this.loadRoom(roomId);
                         if (room) {
-                            // Проверяем, есть ли я в этой комнате
                             const myName = this.loadPlayerFromRoom(roomId);
                             if (myName && room.players.includes(myName)) {
                                 rooms.push(room);
@@ -321,12 +282,13 @@
                 this.id = id;
                 this.name = name;
                 this.creator = creator;
-                this.players = [creator]; // Список игроков
-                this.roles = {}; // Роли игроков
+                this.players = [creator];
+                this.roles = {};
                 this.gameStarted = false;
                 this.createdAt = new Date().toISOString();
                 this.maxPlayers = 6;
                 this.lastUpdated = Date.now();
+                this.version = 1;
             }
             
             // Добавить игрока
@@ -338,6 +300,7 @@
                 if (!this.players.includes(username)) {
                     this.players.push(username);
                     this.lastUpdated = Date.now();
+                    this.version++;
                     return { success: true };
                 }
                 return { success: false, error: 'Игрок с таким именем уже есть в комнате' };
@@ -350,6 +313,7 @@
                     this.players.splice(index, 1);
                     delete this.roles[username];
                     this.lastUpdated = Date.now();
+                    this.version++;
                     return true;
                 }
                 return false;
@@ -372,6 +336,7 @@
                 
                 this.gameStarted = true;
                 this.lastUpdated = Date.now();
+                this.version++;
                 return { success: true };
             }
             
@@ -385,24 +350,25 @@
                 return Encoder.encodeObject(this);
             }
             
-            // Декодировать из URL и преобразовать в экземпляр GameRoom
+            // Декодировать из URL
             static decode(encoded) {
                 const roomData = Encoder.decodeObject(encoded);
                 if (!roomData) return null;
                 return GameRoom.fromObject(roomData);
             }
             
-            // Создать экземпляр GameRoom из объекта
+            // Создать экземпляр из объекта
             static fromObject(obj) {
                 const room = new GameRoom(obj.id, obj.name, obj.creator);
                 
-                // Копируем все свойства из объекта
+                // Копируем все свойства
                 if (obj.players) room.players = obj.players;
                 if (obj.roles) room.roles = obj.roles;
                 if (obj.gameStarted !== undefined) room.gameStarted = obj.gameStarted;
                 if (obj.createdAt) room.createdAt = obj.createdAt;
                 if (obj.maxPlayers) room.maxPlayers = obj.maxPlayers;
                 if (obj.lastUpdated) room.lastUpdated = obj.lastUpdated;
+                if (obj.version) room.version = obj.version;
                 
                 return room;
             }
@@ -410,16 +376,14 @@
             // Обновить комнату из хранилища
             updateFromStorage() {
                 const storedRoom = GameStorage.loadRoom(this.id);
-                if (storedRoom) {
-                    // Проверяем, не устарела ли локальная версия
-                    if (storedRoom.lastUpdated > this.lastUpdated) {
-                        // Обновляем только если в хранилище новее
-                        this.players = storedRoom.players;
-                        this.roles = storedRoom.roles;
-                        this.gameStarted = storedRoom.gameStarted;
-                        this.lastUpdated = storedRoom.lastUpdated;
-                        return true;
-                    }
+                if (storedRoom && storedRoom.version > this.version) {
+                    // Обновляем только если версия новее
+                    this.players = storedRoom.players;
+                    this.roles = storedRoom.roles;
+                    this.gameStarted = storedRoom.gameStarted;
+                    this.lastUpdated = storedRoom.lastUpdated;
+                    this.version = storedRoom.version;
+                    return true;
                 }
                 return false;
             }
@@ -427,14 +391,15 @@
             // Сохранить комнату
             save() {
                 this.lastUpdated = Date.now();
+                this.version++;
                 return GameStorage.saveRoom(this);
             }
             
-            // Проверить, есть ли обновления в хранилище
+            // Проверить, есть ли обновления
             hasUpdatesInStorage() {
                 const storedRoom = GameStorage.loadRoom(this.id);
                 if (!storedRoom) return false;
-                return storedRoom.lastUpdated > this.lastUpdated;
+                return storedRoom.version > this.version;
             }
         }
         
@@ -444,12 +409,11 @@
                 this.app = document.getElementById('app');
                 this.currentRoom = null;
                 this.currentUser = null;
-                this.isLoading = false;
                 this.refreshInterval = null;
-                this.lastRefreshTime = 0;
+                this.lastRoomVersion = 0;
             }
             
-            async init() {
+            init() {
                 this.checkUrl();
             }
             
@@ -458,10 +422,8 @@
                 const roomData = params.get('room');
                 
                 if (roomData) {
-                    // Есть параметр room в URL - значит это приглашение
                     this.handleRoomInvitation(roomData);
                 } else {
-                    // Нет параметра - показываем главную
                     this.renderWelcome();
                 }
             }
@@ -470,28 +432,33 @@
             handleRoomInvitation(encodedRoom) {
                 try {
                     // Декодируем комнату из URL
-                    this.currentRoom = GameRoom.decode(encodedRoom);
+                    const roomFromUrl = GameRoom.decode(encodedRoom);
                     
-                    if (!this.currentRoom) {
-                        this.showError('Комната не найдена или ссылка устарела!');
+                    if (!roomFromUrl) {
+                        this.showError('Неверная ссылка на комнату!');
                         return;
                     }
                     
-                    // Загружаем комнату из хранилища (если есть обновления)
-                    const storedRoom = GameStorage.loadRoom(this.currentRoom.id);
-                    if (storedRoom) {
-                        this.currentRoom = storedRoom;
+                    // Загружаем актуальную комнату из localStorage
+                    let storedRoom = GameStorage.loadRoom(roomFromUrl.id);
+                    
+                    if (!storedRoom) {
+                        // Если комнаты нет в localStorage, создаем новую из URL
+                        storedRoom = roomFromUrl;
+                        GameStorage.saveRoom(storedRoom);
                     }
                     
-                    // Проверяем, есть ли у нас уже имя для этой комнаты
+                    this.currentRoom = storedRoom;
+                    
+                    // Проверяем, есть ли у нас имя для этой комнаты
                     this.currentUser = GameStorage.loadPlayerFromRoom(this.currentRoom.id);
                     
                     if (this.currentUser && this.currentRoom.players.includes(this.currentUser)) {
-                        // Уже есть имя и мы в комнате - сразу входим
+                        // Уже зарегистрированы в комнате
                         this.renderRoom();
                         this.startAutoRefresh();
                     } else {
-                        // Нужно ввести имя - показываем форму входа
+                        // Нужно ввести имя
                         this.renderJoinForm();
                     }
                     
@@ -501,7 +468,7 @@
                 }
             }
             
-            // Автоматическое обновление комнаты
+            // Автоматическое обновление
             startAutoRefresh() {
                 if (this.refreshInterval) {
                     clearInterval(this.refreshInterval);
@@ -509,7 +476,7 @@
                 
                 this.refreshInterval = setInterval(() => {
                     this.checkForUpdates();
-                }, 3000); // Проверка каждые 3 секунды
+                }, 2000); // Каждые 2 секунды
             }
             
             stopAutoRefresh() {
@@ -523,17 +490,26 @@
             checkForUpdates() {
                 if (!this.currentRoom || !this.currentUser) return;
                 
-                const hasUpdates = this.currentRoom.hasUpdatesInStorage();
-                if (hasUpdates) {
-                    // Обновляем комнату
-                    const oldPlayerCount = this.currentRoom.players.length;
-                    this.currentRoom.updateFromStorage();
-                    const newPlayerCount = this.currentRoom.players.length;
+                // Проверяем, изменилась ли версия комнаты в localStorage
+                const storedRoom = GameStorage.loadRoom(this.currentRoom.id);
+                
+                if (storedRoom && storedRoom.version > this.currentRoom.version) {
+                    // Сохраняем старые данные для сравнения
+                    const oldPlayers = [...this.currentRoom.players];
+                    const oldCount = oldPlayers.length;
                     
-                    // Если количество игроков изменилось, показываем уведомление
-                    if (newPlayerCount > oldPlayerCount) {
-                        const newPlayers = this.currentRoom.players.length - oldPlayerCount;
-                        this.showNotification(`🎮 Новый игрок присоединился! Всего: ${this.currentRoom.players.length}/6`);
+                    // Обновляем комнату
+                    this.currentRoom = storedRoom;
+                    this.lastRoomVersion = storedRoom.version;
+                    
+                    const newCount = this.currentRoom.players.length;
+                    
+                    // Если игроков стало больше
+                    if (newCount > oldCount) {
+                        const newPlayers = this.currentRoom.players.filter(p => !oldPlayers.includes(p));
+                        if (newPlayers.length > 0) {
+                            alert(`🎮 Новый игрок присоединился: ${newPlayers.join(', ')}`);
+                        }
                     }
                     
                     // Перерисовываем комнату
@@ -541,23 +517,21 @@
                 }
             }
             
-            // Показать уведомление
-            showNotification(message) {
-                const notification = document.getElementById('notification');
-                if (!notification) return;
-                
-                notification.textContent = message;
-                notification.style.display = 'block';
-                
-                // Автоматически скрыть через 3 секунды
-                setTimeout(() => {
-                    notification.style.display = 'none';
-                }, 3000);
+            // Принудительное обновление
+            forceRefresh() {
+                if (this.currentRoom) {
+                    const storedRoom = GameStorage.loadRoom(this.currentRoom.id);
+                    if (storedRoom) {
+                        this.currentRoom = storedRoom;
+                        this.renderRoom();
+                        alert('🔄 Комната обновлена!');
+                    }
+                }
             }
             
             // === РЕНДЕРИНГ ===
             
-            // Приветственный экран
+            // Главная страница
             renderWelcome() {
                 this.stopAutoRefresh();
                 const myRooms = GameStorage.getAllMyRooms();
@@ -598,44 +572,22 @@
                                                 <div class="player ${isCreator ? 'creator' : ''}">
                                                     <h3>${room.name}</h3>
                                                     <p>Игроков: ${room.players.length}/6</p>
-                                                    <p>Статус: ${room.gameStarted ? '🎮 Игра идет' : '⏳ Ожидание'}</p>
-                                                    ${isCreator ? '<p><small>Создатель</small></p>' : ''}
+                                                    <p>${isCreator ? '👑 Создатель' : '👤 Игрок'}</p>
                                                     <button class="btn btn-blue" onclick="game.enterRoom('${encoded}')">Войти</button>
-                                                    <button class="btn btn-purple" onclick="game.copyRoomLink('${encoded}')">📋 Ссылка</button>
+                                                    ${isCreator ? `<button class="btn btn-purple" onclick="game.copyRoomLink('${encoded}')">📋 Ссылка</button>` : ''}
                                                 </div>
                                             `;
                                         }).join('')}
                                     </div>
                                 </div>
                             ` : ''}
-                            
-                            <div class="card">
-                                <h2>📖 Как играть?</h2>
-                                <ol style="color: #ccc; line-height: 1.8; padding-left: 20px;">
-                                    <li><strong>Создайте комнату</strong> - укажите название и своё имя</li>
-                                    <li><strong>Скопируйте ссылку</strong> - отправьте друзьям</li>
-                                    <li><strong>Друзья вводят имена</strong> - каждый под своим именем</li>
-                                    <li><strong>Начните игру</strong> - когда все собрались</li>
-                                    <li><strong>Получите роли</strong> - случайные роли для каждого</li>
-                                    <li><strong>Играйте!</strong> - по своим ролям</li>
-                                </ol>
-                                <p style="color: #4CAF50; margin-top: 15px; font-weight: bold;">
-                                    💡 Комната обновляется автоматически каждые 3 секунды!
-                                </p>
-                            </div>
                         </div>
-                        
-                        <footer>
-                            <p>🎮 Бункер - Игра в роли • Работает полностью в браузере</p>
-                            <p>Автоматическое обновление • Не требует сервера</p>
-                        </footer>
                     </div>
                 `;
             }
             
             // Форма создания комнаты
             showCreateRoom() {
-                this.stopAutoRefresh();
                 this.app.innerHTML = `
                     <div class="header">
                         <div>
@@ -659,7 +611,6 @@
             
             // Форма входа по ссылке
             showJoinRoom() {
-                this.stopAutoRefresh();
                 this.app.innerHTML = `
                     <div class="header">
                         <div>
@@ -681,21 +632,12 @@
                 `;
             }
             
-            // Форма ввода имени для входа в комнату
+            // Форма ввода имени
             renderJoinForm() {
-                this.stopAutoRefresh();
                 if (!this.currentRoom) {
                     this.renderWelcome();
                     return;
                 }
-                
-                // Получаем актуальный список игроков из хранилища
-                const storedRoom = GameStorage.loadRoom(this.currentRoom.id);
-                if (storedRoom) {
-                    this.currentRoom = storedRoom;
-                }
-                
-                const roomPlayers = this.currentRoom.players;
                 
                 this.app.innerHTML = `
                     <div class="header">
@@ -717,18 +659,17 @@
                         </div>
                         
                         <div class="card">
-                            <h3>👥 Уже в комнате (${roomPlayers.length}/6):</h3>
+                            <h3>👥 Уже в комнате (${this.currentRoom.players.length}/6):</h3>
                             <div class="players">
-                                ${roomPlayers.map(player => `
+                                ${this.currentRoom.players.map(player => `
                                     <div class="player ${player === this.currentRoom.creator ? 'creator' : ''}">
                                         <h4>${player}</h4>
                                         ${player === this.currentRoom.creator ? '<p>Создатель</p>' : ''}
                                     </div>
                                 `).join('')}
                             </div>
-                            ${this.currentRoom.gameStarted ? '<p style="color: #ff9800; margin-top: 10px;">⚠️ Игра уже начата. Вы сможете узнать свою роль после входа.</p>' : ''}
                             <p style="color: #4CAF50; margin-top: 10px;">
-                                ✅ После входа комната будет обновляться автоматически
+                                💡 После входа обновите страницу, чтобы увидеть других игроков
                             </p>
                         </div>
                     </div>
@@ -742,9 +683,6 @@
                     return;
                 }
                 
-                // Обновляем комнату из хранилища
-                this.currentRoom.updateFromStorage();
-                
                 const room = this.currentRoom;
                 const isCreator = room.creator === this.currentUser;
                 const playerRole = room.getPlayerRole(this.currentUser);
@@ -755,8 +693,8 @@
                         <div>
                             <h1>🎮 ${room.name}</h1>
                             <p>Вы: ${this.currentUser} ${isCreator ? '👑' : ''}</p>
-                            <p>Игроков: ${room.players.length}/6 • ${room.gameStarted ? '🎮 Игра идет' : '⏳ Ожидание'}</p>
-                            <p><small>Обновляется автоматически</small></p>
+                            <p>Игроков: <strong>${room.players.length}/6</strong> • Версия комнаты: ${room.version}</p>
+                            <p><small>🔄 Автообновление каждые 2 секунды</small></p>
                         </div>
                     </div>
                     
@@ -764,22 +702,29 @@
                         <div class="card">
                             <h2>Информация о комнате</h2>
                             <p><strong>Создатель:</strong> ${room.creator} ${isCreator ? '(Вы)' : ''}</p>
-                            <p><strong>Игроков:</strong> ${room.players.length} из ${room.maxPlayers}</p>
-                            <p><strong>Статус:</strong> ${room.gameStarted ? 'Игра начата' : 'Ожидание игроков'}</p>
+                            <p><strong>Статус:</strong> ${room.gameStarted ? '🎮 Игра идет' : '⏳ Ожидание игроков'}</p>
+                            <p><strong>ID комнаты:</strong> <small>${room.id.substring(0, 20)}...</small></p>
                             
                             ${canStartGame ? `
-                                <button class="btn" onclick="game.startGame()">🎮 НАЧАТЬ ИГРУ (${room.players.length} игрока)</button>
-                                <p style="color: #4CAF50; margin-top: 10px; font-size: 14px;">
-                                    ✅ Можно начинать игру! Есть ${room.players.length} игрока(ов)
-                                </p>
-                            ` : isCreator && !room.gameStarted ? `
-                                <div style="background: #2a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                                    <p style="color: #ff9800;">
-                                        ⏳ Ожидание игроков... Нужно минимум 2 игрока
+                                <div style="background: #1a2a1a; padding: 20px; border-radius: 10px; margin: 15px 0; text-align: center;">
+                                    <h3 style="color: #4CAF50;">✅ Можно начинать игру!</h3>
+                                    <p>В комнате ${room.players.length} игрока(ов): ${room.players.join(', ')}</p>
+                                    <button class="btn" style="font-size: 1.2rem; padding: 15px 30px;" onclick="game.startGame()">
+                                        🎮 НАЧАТЬ ИГРУ
+                                    </button>
+                                    <p style="color: #aaa; margin-top: 10px; font-size: 14px;">
+                                        Роли будут распределены случайным образом
                                     </p>
-                                    <p>Сейчас в комнате: ${room.players.length} игрок(а)</p>
-                                    <button class="refresh-btn" onclick="game.manualRefresh()">
-                                        🔄 Обновить список игроков
+                                </div>
+                            ` : isCreator && !room.gameStarted ? `
+                                <div style="background: #2a1a1a; padding: 20px; border-radius: 10px; margin: 15px 0;">
+                                    <h3 style="color: #ff9800;">⏳ Ожидание игроков</h3>
+                                    <p>Сейчас в комнате: <strong>${room.players.length} игрок(а)</strong></p>
+                                    <p>Нужно минимум 2 игрока для начала игры</p>
+                                    <p>Отправьте ссылку друзьям:</p>
+                                    <button class="btn btn-purple" onclick="game.copyLink()">📋 Копировать ссылку</button>
+                                    <button class="refresh-btn" onclick="game.forceRefresh()" style="margin-left: 10px;">
+                                        🔄 Обновить список
                                     </button>
                                 </div>
                             ` : ''}
@@ -792,8 +737,7 @@
                                 </div>
                             ` : room.gameStarted && !playerRole ? `
                                 <div class="card" style="text-align: center; background: #002244;">
-                                    <h3>🎭 Ваша роль еще не назначена</h3>
-                                    <p>Создатель игры должен перезапустить распределение ролей</p>
+                                    <h3>🎭 Роль еще не назначена</h3>
                                     <button class="btn" onclick="game.showRole()">🔍 Проверить роль</button>
                                 </div>
                             ` : ''}
@@ -801,32 +745,35 @@
                         
                         <div class="card">
                             <h2>👥 Игроки в комнате (${room.players.length}/6)</h2>
-                            <div class="players">
-                                ${room.players.map(player => {
-                                    const role = room.roles[player];
-                                    const isThisPlayer = player === this.currentUser;
-                                    return `
-                                        <div class="player ${player === room.creator ? 'creator' : ''}">
-                                            <h3>${player} ${isThisPlayer ? '(Вы)' : ''}</h3>
-                                            ${room.gameStarted && role && (isThisPlayer || isCreator) ? 
-                                                `<p style="color: #4CAF50; margin-top: 5px; font-weight: bold;">${role}</p>` : 
-                                                room.gameStarted ? `<p style="color: #666; margin-top: 5px;">Роль скрыта</p>` : ''
-                                            }
-                                            ${isThisPlayer ? '<p><small>Это вы</small></p>' : ''}
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                            ${room.players.length >= room.maxPlayers ? 
-                                '<p style="color: #ff9800; margin-top: 10px;">⚠️ Комната заполнена. Новые игроки не смогут присоединиться.</p>' : 
-                                `<p style="color: #4CAF50; margin-top: 10px;">✅ Есть ${room.maxPlayers - room.players.length} свободных мест</p>`
-                            }
-                            <div style="margin-top: 15px; text-align: center;">
-                                <button class="refresh-btn" onclick="game.manualRefresh()">
-                                    🔄 Обновить список
+                            ${room.players.length > 0 ? `
+                                <div class="players">
+                                    ${room.players.map(player => {
+                                        const role = room.roles[player];
+                                        const isThisPlayer = player === this.currentUser;
+                                        return `
+                                            <div class="player ${player === room.creator ? 'creator' : ''}">
+                                                <h3>${player} ${isThisPlayer ? '(Вы)' : ''}</h3>
+                                                ${room.gameStarted && role && (isThisPlayer || isCreator) ? 
+                                                    `<p style="color: #4CAF50; margin-top: 5px; font-weight: bold;">${role}</p>` : 
+                                                    room.gameStarted ? `<p style="color: #666; margin-top: 5px;">Роль скрыта</p>` : ''
+                                                }
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            ` : `
+                                <p style="color: #666; text-align: center; padding: 20px;">
+                                    В комнате пока никого нет
+                                </p>
+                            `}
+                            
+                            <div style="margin-top: 20px; text-align: center;">
+                                <button class="refresh-btn" onclick="game.forceRefresh()">
+                                    🔄 Принудительно обновить
                                 </button>
-                                <p style="color: #aaa; font-size: 12px; margin-top: 5px;">
-                                    Автоматическое обновление каждые 3 секунды
+                                <p style="color: #aaa; font-size: 12px; margin-top: 10px;">
+                                    Автообновление: каждые 2 секунды<br>
+                                    Версия комнаты: ${room.version}
                                 </p>
                             </div>
                         </div>
@@ -834,18 +781,8 @@
                         <div class="card" style="text-align: center;">
                             <button class="btn" onclick="game.goHome()">← На главную</button>
                             <button class="btn btn-purple" onclick="game.copyLink()">📋 Копировать ссылку</button>
-                            ${!isCreator ? `<button class="btn btn-red" onclick="game.leaveRoom()">🚪 Выйти из комнаты</button>` : ''}
-                            ${isCreator ? `<button class="btn btn-red" onclick="game.deleteRoom()">🗑️ Удалить комнату</button>` : ''}
-                        </div>
-                        
-                        <div class="card" style="background: #1a2a1a;">
-                            <h3>📢 Для создателя комнаты:</h3>
-                            <ol style="color: #ccc; line-height: 1.8; padding-left: 20px;">
-                                <li>Отправьте ссылку друзьям (кнопка "Копировать ссылку")</li>
-                                <li>Дождитесь, когда друзья введут свои имена</li>
-                                <li>Как только появится 2+ игрока, кнопка "Начать игру" станет активной</li>
-                                <li>Нажмите "Начать игру" для распределения ролей</li>
-                            </ol>
+                            ${!isCreator ? `<button class="btn btn-red" onclick="game.leaveRoom()">🚪 Выйти</button>` : ''}
+                            ${isCreator ? `<button class="btn btn-red" onclick="game.deleteRoom()">🗑️ Удалить</button>` : ''}
                         </div>
                     </div>
                 `;
@@ -862,27 +799,19 @@
                     return;
                 }
                 
-                if (roomName.length < 3) {
-                    alert('Название комнаты должно быть от 3 символов');
-                    return;
-                }
-                
                 const roomId = 'room_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
                 const room = new GameRoom(roomId, roomName, creatorName);
                 
-                // Сохраняем комнату
+                // Сохраняем комнату и игрока
                 GameStorage.saveRoom(room);
                 GameStorage.savePlayerToRoom(roomId, creatorName);
                 
-                // Устанавливаем текущие данные
                 this.currentRoom = room;
                 this.currentUser = creatorName;
                 
-                // Переходим в комнату
                 this.renderRoom();
                 this.startAutoRefresh();
                 
-                // Показываем ссылку
                 setTimeout(() => {
                     this.copyLink();
                 }, 500);
@@ -905,6 +834,12 @@
                     return;
                 }
                 
+                // Загружаем актуальную версию комнаты
+                const storedRoom = GameStorage.loadRoom(this.currentRoom.id);
+                if (storedRoom) {
+                    this.currentRoom = storedRoom;
+                }
+                
                 // Проверяем, нет ли уже такого игрока
                 if (this.currentRoom.players.includes(playerName)) {
                     errorDiv.textContent = 'Игрок с таким именем уже есть в комнате!';
@@ -920,37 +855,18 @@
                     return;
                 }
                 
-                // Сохраняем имя игрока
+                // Сохраняем игрока и комнату
                 GameStorage.savePlayerToRoom(this.currentRoom.id, playerName);
-                
-                // Сохраняем обновленную комнату
-                this.currentRoom.save();
+                GameStorage.saveRoom(this.currentRoom);
                 
                 this.currentUser = playerName;
-                this.renderRoom();
-                this.startAutoRefresh();
                 
-                alert(`🎮 Добро пожаловать в игру, ${playerName}!`);
-                this.showNotification(`✅ Вы успешно присоединились к комнате!`);
-            }
-            
-            // Ручное обновление
-            manualRefresh() {
-                if (this.currentRoom) {
-                    const oldCount = this.currentRoom.players.length;
-                    this.currentRoom.updateFromStorage();
-                    const newCount = this.currentRoom.players.length;
-                    
-                    if (newCount > oldCount) {
-                        this.showNotification(`🔄 Обновлено! Новые игроки: ${newCount - oldCount}`);
-                    } else if (newCount < oldCount) {
-                        this.showNotification(`🔄 Обновлено! Игроков стало: ${newCount}`);
-                    } else {
-                        this.showNotification(`🔄 Обновлено! Изменений нет`);
-                    }
-                    
-                    this.renderRoom();
-                }
+                alert(`🎮 Добро пожаловать в игру, ${playerName}! Обновите страницу, чтобы увидеть других игроков.`);
+                
+                // Перезагружаем страницу для синхронизации
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
             }
             
             joinByLink() {
@@ -967,7 +883,6 @@
                 }
                 
                 try {
-                    // Пытаемся извлечь параметр room из ссылки
                     const url = new URL(link);
                     const roomParam = url.searchParams.get('room');
                     
@@ -977,7 +892,6 @@
                         return;
                     }
                     
-                    // Перенаправляем на страницу с параметром room
                     window.location.href = `?room=${roomParam}`;
                     
                 } catch (e) {
@@ -1007,10 +921,8 @@
                 
                 const result = this.currentRoom.startGame();
                 if (result.success) {
-                    // Сохраняем обновленную комнату
-                    this.currentRoom.save();
+                    GameStorage.saveRoom(this.currentRoom);
                     this.renderRoom();
-                    this.showNotification('🎮 Игра началась! Роли распределены.');
                     alert('🎮 Игра началась! Роли распределены.');
                 } else {
                     alert(result.error);
@@ -1023,7 +935,7 @@
                     alert(`🎭 Ваша роль: ${role}`);
                     this.renderRoom();
                 } else {
-                    alert('Роль еще не назначена! Ожидайте, пока создатель начнет игру.');
+                    alert('Роль еще не назначена!');
                 }
             }
             
@@ -1031,45 +943,33 @@
                 const encodedRoom = this.currentRoom.encode();
                 const link = `${window.location.origin}${window.location.pathname}?room=${encodedRoom}`;
                 navigator.clipboard.writeText(link).then(() => {
-                    alert('✅ Ссылка скопирована!\n\nОтправьте эту ссылку друзьям, чтобы они присоединились к игре.');
+                    alert('✅ Ссылка скопирована!\n\nОтправьте друзьям, чтобы они присоединились.');
                 }).catch(() => {
                     prompt('Скопируйте ссылку:', link);
                 });
             }
             
             leaveRoom() {
-                if (confirm('Выйти из комнаты? Вы сможете вернуться позже по той же ссылке.')) {
-                    // Удаляем игрока из комнаты
+                if (confirm('Выйти из комнаты?')) {
                     this.currentRoom.removePlayer(this.currentUser);
+                    GameStorage.saveRoom(this.currentRoom);
                     
-                    // Сохраняем обновленную комнату
-                    this.currentRoom.save();
-                    
-                    // Останавливаем автообновление
                     this.stopAutoRefresh();
-                    
-                    // Очищаем текущие данные
                     this.currentRoom = null;
                     this.currentUser = null;
                     
-                    // Возвращаемся на главную
                     this.goHome();
                 }
             }
             
             deleteRoom() {
-                if (confirm('Удалить комнату? Все игроки выйдут, и комната будет удалена.')) {
-                    // Удаляем комнату из хранилища
+                if (confirm('Удалить комнату? Все игроки выйдут.')) {
                     GameStorage.deleteRoom(this.currentRoom.id);
                     
-                    // Останавливаем автообновление
                     this.stopAutoRefresh();
-                    
-                    // Очищаем текущие данные
                     this.currentRoom = null;
                     this.currentUser = null;
                     
-                    // Возвращаемся на главную
                     this.goHome();
                 }
             }
@@ -1087,7 +987,6 @@
                     <div class="container">
                         <div class="card">
                             <h2>${message}</h2>
-                            <p style="color: #aaa; margin: 20px 0;">Попробуйте создать новую комнату</p>
                             <button class="btn" onclick="game.goHome()">← На главную</button>
                         </div>
                     </div>
