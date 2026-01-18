@@ -143,7 +143,12 @@
                 try {
                     const encoded = localStorage.getItem('room_' + roomId);
                     if (!encoded) return null;
-                    return Encoder.decodeObject(encoded);
+                    
+                    const roomData = Encoder.decodeObject(encoded);
+                    if (!roomData) return null;
+                    
+                    // Преобразуем объект в экземпляр GameRoom
+                    return GameRoom.fromObject(roomData);
                 } catch (e) {
                     console.error('Ошибка загрузки:', e);
                     return null;
@@ -246,15 +251,12 @@
                 
                 for (const roomId of roomsList) {
                     try {
-                        const encoded = localStorage.getItem('room_' + roomId);
-                        if (encoded) {
-                            const room = Encoder.decodeObject(encoded);
-                            if (room) {
-                                // Проверяем, является ли текущий пользователь создателем
-                                const myName = this.loadPlayerFromRoom(roomId);
-                                if (room.creator === myName) {
-                                    rooms.push(room);
-                                }
+                        const room = this.loadRoom(roomId);
+                        if (room) {
+                            // Проверяем, является ли текущий пользователь создателем
+                            const myName = this.loadPlayerFromRoom(roomId);
+                            if (room.creator === myName) {
+                                rooms.push(room);
                             }
                         }
                     } catch (e) {
@@ -271,15 +273,12 @@
                 
                 for (const roomId of roomsList) {
                     try {
-                        const encoded = localStorage.getItem('room_' + roomId);
-                        if (encoded) {
-                            const room = Encoder.decodeObject(encoded);
-                            if (room) {
-                                // Проверяем, есть ли я в этой комнате
-                                const myName = this.loadPlayerFromRoom(roomId);
-                                if (myName && room.players.includes(myName)) {
-                                    rooms.push(room);
-                                }
+                        const room = this.loadRoom(roomId);
+                        if (room) {
+                            // Проверяем, есть ли я в этой комнате
+                            const myName = this.loadPlayerFromRoom(roomId);
+                            if (myName && room.players.includes(myName)) {
+                                rooms.push(room);
                             }
                         }
                     } catch (e) {
@@ -356,16 +355,35 @@
                 return Encoder.encodeObject(this);
             }
             
-            // Декодировать из URL
+            // Декодировать из URL и преобразовать в экземпляр GameRoom
             static decode(encoded) {
-                return Encoder.decodeObject(encoded);
+                const roomData = Encoder.decodeObject(encoded);
+                if (!roomData) return null;
+                return GameRoom.fromObject(roomData);
+            }
+            
+            // Создать экземпляр GameRoom из объекта
+            static fromObject(obj) {
+                const room = new GameRoom(obj.id, obj.name, obj.creator);
+                
+                // Копируем все свойства из объекта
+                if (obj.players) room.players = obj.players;
+                if (obj.roles) room.roles = obj.roles;
+                if (obj.gameStarted !== undefined) room.gameStarted = obj.gameStarted;
+                if (obj.createdAt) room.createdAt = obj.createdAt;
+                if (obj.maxPlayers) room.maxPlayers = obj.maxPlayers;
+                
+                return room;
             }
             
             // Обновить комнату из хранилища
             updateFromStorage() {
                 const storedRoom = GameStorage.loadRoom(this.id);
                 if (storedRoom) {
-                    Object.assign(this, storedRoom);
+                    // Обновляем свойства
+                    this.players = storedRoom.players;
+                    this.roles = storedRoom.roles;
+                    this.gameStarted = storedRoom.gameStarted;
                     return true;
                 }
                 return false;
@@ -833,90 +851,4 @@
                     // Сохраняем обновленную комнату
                     this.currentRoom.save();
                     this.renderRoom();
-                    alert('🎮 Игра началась! Роли распределены.');
-                } else {
-                    alert(result.error);
-                }
-            }
-            
-            showRole() {
-                const role = this.currentRoom.getPlayerRole(this.currentUser);
-                if (role) {
-                    alert(`🎭 Ваша роль: ${role}`);
-                    this.renderRoom();
-                } else {
-                    alert('Роль еще не назначена! Ожидайте, пока создатель начнет игру.');
-                }
-            }
-            
-            copyLink() {
-                const encodedRoom = this.currentRoom.encode();
-                const link = `${window.location.origin}${window.location.pathname}?room=${encodedRoom}`;
-                navigator.clipboard.writeText(link).then(() => {
-                    alert('✅ Ссылка скопирована!\n\nОтправьте эту ссылку друзьям, чтобы они присоединились к игре.');
-                }).catch(() => {
-                    prompt('Скопируйте ссылку:', link);
-                });
-            }
-            
-            leaveRoom() {
-                if (confirm('Выйти из комнаты? Вы сможете вернуться позже по той же ссылке.')) {
-                    // Удаляем игрока из комнаты
-                    this.currentRoom.removePlayer(this.currentUser);
-                    
-                    // Сохраняем обновленную комнату
-                    this.currentRoom.save();
-                    
-                    // Очищаем текущие данные
-                    this.currentRoom = null;
-                    this.currentUser = null;
-                    
-                    // Возвращаемся на главную
-                    this.goHome();
-                }
-            }
-            
-            deleteRoom() {
-                if (confirm('Удалить комнату? Все игроки выйдут, и комната будет удалена.')) {
-                    // Удаляем комнату из хранилища
-                    GameStorage.deleteRoom(this.currentRoom.id);
-                    
-                    // Очищаем текущие данные
-                    this.currentRoom = null;
-                    this.currentUser = null;
-                    
-                    // Возвращаемся на главную
-                    this.goHome();
-                }
-            }
-            
-            goHome() {
-                window.location.href = window.location.pathname;
-            }
-            
-            showError(message) {
-                this.app.innerHTML = `
-                    <div class="header">
-                        <h1>😕 Ошибка</h1>
-                    </div>
-                    <div class="container">
-                        <div class="card">
-                            <h2>${message}</h2>
-                            <p style="color: #aaa; margin: 20px 0;">Попробуйте создать новую комнату</p>
-                            <button class="btn" onclick="game.goHome()">← На главную</button>
-                        </div>
-                    </div>
-                `;
-            }
-        }
-        
-        // Создаем глобальный экземпляр игры
-        window.game = new BunkerGame();
-        
-        // Запускаем игру при загрузке
-        document.addEventListener('DOMContentLoaded', () => {
-            window.game.init();
-        });
-    </script>
-</body>
-</html>
+                    alert('🎮
