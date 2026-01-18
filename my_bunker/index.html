@@ -851,4 +851,90 @@
                     // Сохраняем обновленную комнату
                     this.currentRoom.save();
                     this.renderRoom();
-                    alert('🎮
+                    alert('🎮 Игра началась! Роли распределены.');
+                } else {
+                    alert(result.error);
+                }
+            }
+            
+            showRole() {
+                const role = this.currentRoom.getPlayerRole(this.currentUser);
+                if (role) {
+                    alert(`🎭 Ваша роль: ${role}`);
+                    this.renderRoom();
+                } else {
+                    alert('Роль еще не назначена! Ожидайте, пока создатель начнет игру.');
+                }
+            }
+            
+            copyLink() {
+                const encodedRoom = this.currentRoom.encode();
+                const link = `${window.location.origin}${window.location.pathname}?room=${encodedRoom}`;
+                navigator.clipboard.writeText(link).then(() => {
+                    alert('✅ Ссылка скопирована!\n\nОтправьте эту ссылку друзьям, чтобы они присоединились к игре.');
+                }).catch(() => {
+                    prompt('Скопируйте ссылку:', link);
+                });
+            }
+            
+            leaveRoom() {
+                if (confirm('Выйти из комнаты? Вы сможете вернуться позже по той же ссылке.')) {
+                    // Удаляем игрока из комнаты
+                    this.currentRoom.removePlayer(this.currentUser);
+                    
+                    // Сохраняем обновленную комнату
+                    this.currentRoom.save();
+                    
+                    // Очищаем текущие данные
+                    this.currentRoom = null;
+                    this.currentUser = null;
+                    
+                    // Возвращаемся на главную
+                    this.goHome();
+                }
+            }
+            
+            deleteRoom() {
+                if (confirm('Удалить комнату? Все игроки выйдут, и комната будет удалена.')) {
+                    // Удаляем комнату из хранилища
+                    GameStorage.deleteRoom(this.currentRoom.id);
+                    
+                    // Очищаем текущие данные
+                    this.currentRoom = null;
+                    this.currentUser = null;
+                    
+                    // Возвращаемся на главную
+                    this.goHome();
+                }
+            }
+            
+            goHome() {
+                window.location.href = window.location.pathname;
+            }
+            
+            showError(message) {
+                this.app.innerHTML = `
+                    <div class="header">
+                        <h1>😕 Ошибка</h1>
+                    </div>
+                    <div class="container">
+                        <div class="card">
+                            <h2>${message}</h2>
+                            <p style="color: #aaa; margin: 20px 0;">Попробуйте создать новую комнату</p>
+                            <button class="btn" onclick="game.goHome()">← На главную</button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Создаем глобальный экземпляр игры
+        window.game = new BunkerGame();
+        
+        // Запускаем игру при загрузке
+        document.addEventListener('DOMContentLoaded', () => {
+            window.game.init();
+        });
+    </script>
+</body>
+</html>
