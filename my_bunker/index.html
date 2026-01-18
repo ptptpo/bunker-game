@@ -3,172 +3,485 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎮 Бункер</title>
+    <title>🎮 Бункер - Игра в роли</title>
     <style>
-        body { background: #000; color: white; font-family: Arial; margin: 0; padding: 20px; }
-        .room { max-width: 600px; margin: 0 auto; background: #1a1a1a; padding: 20px; border-radius: 10px; }
-        h1 { color: #4CAF50; text-align: center; }
-        .players { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 20px 0; }
-        .player { background: #2a2a2a; padding: 10px; border-radius: 5px; }
-        button { background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
-        input { width: 100%; padding: 10px; margin: 10px 0; background: #333; color: white; border: 1px solid #444; border-radius: 5px; }
-        .link { background: #222; padding: 10px; border-radius: 5px; margin: 10px 0; word-break: break-all; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; color: white; font-family: Arial; }
+        
+        .header { height: 30vh; background: #222; display: flex; align-items: center; justify-content: center; text-align: center; }
+        .container { max-width: 800px; margin: 0 auto; padding: 30px 20px; }
+        
+        .card { background: #1a1a1a; border-radius: 10px; padding: 25px; margin: 20px 0; border: 1px solid #333; }
+        .card h2 { color: #4CAF50; margin-bottom: 20px; }
+        
+        .btn { display: inline-block; background: #4CAF50; color: white; padding: 12px 24px; margin: 8px; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
+        .btn:hover { background: #45a049; }
+        .btn-blue { background: #2196F3; }
+        .btn-blue:hover { background: #0b7dda; }
+        .btn-red { background: #f44336; }
+        .btn-red:hover { background: #d32f2f; }
+        
+        input { width: 100%; padding: 12px; background: #2a2a2a; border: 1px solid #444; border-radius: 6px; color: white; margin: 10px 0; }
+        
+        .players { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin: 20px 0; }
+        .player { background: #2a2a2a; padding: 15px; border-radius: 8px; border-left: 4px solid #4CAF50; }
+        .player.creator { border-left-color: #ff9800; }
+        
+        .role { background: #003366; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center; border: 2px solid #00aaff; }
+        
+        .link-box { background: #1a2a2a; padding: 15px; border-radius: 8px; margin: 15px 0; word-break: break-all; font-family: monospace; }
+        
+        .error { background: #5d0000; color: #ff8a8a; padding: 10px; border-radius: 5px; margin: 10px 0; }
     </style>
 </head>
 <body>
-    <div id="app"></div>
+    <div id="app">
+        <!-- Игра загружается здесь -->
+    </div>
 
     <script>
+        // === КОНСТАНТЫ ===
         const ROLES = ["👨‍🍳 Повар", "👮 Полицейский", "👨‍🔬 Ученый", "👨‍🔬 Биолог", "👨‍🔬 Физик", "🏃 Спортсмен"];
-        let room = null;
-        let myName = '';
         
-        function init() {
-            const params = new URLSearchParams(window.location.search);
-            const roomData = params.get('r');
+        // === КЛАСС КОМНАТЫ (как в Python) ===
+        class Room {
+            constructor(id, name, owner) {
+                this.id = id;
+                this.name = name;
+                this.owner = owner;
+                this.members = [owner];
+                this.game_started = false;
+                this.roles = {};
+                this.created_at = new Date().toISOString();
+            }
             
-            if (roomData) {
+            // Добавить участника
+            addMember(username) {
+                if (!this.members.includes(username)) {
+                    this.members.push(username);
+                    return true;
+                }
+                return false;
+            }
+            
+            // Начать игру
+            startGame() {
+                if (this.members.length < 2) return false;
+                if (this.members.length > ROLES.length) return false;
+                
+                // Перемешиваем роли
+                const shuffled = [...ROLES].sort(() => Math.random() - 0.5);
+                
+                // Раздаем роли
+                this.roles = {};
+                this.members.forEach((member, i) => {
+                    if (i < shuffled.length) {
+                        this.roles[member] = shuffled[i];
+                    }
+                });
+                
+                this.game_started = true;
+                return true;
+            }
+            
+            // Сбросить игру
+            resetGame() {
+                this.game_started = false;
+                this.roles = {};
+                return true;
+            }
+            
+            // Удалить участника
+            removeMember(username) {
+                const index = this.members.indexOf(username);
+                if (index > -1) {
+                    this.members.splice(index, 1);
+                    
+                    // Если участник - владелец, назначаем нового
+                    if (username === this.owner && this.members.length > 0) {
+                        this.owner = this.members[0];
+                    }
+                    
+                    // Удаляем его роль
+                    delete this.roles[username];
+                    
+                    return true;
+                }
+                return false;
+            }
+            
+            // Сериализовать для URL
+            serialize() {
+                return btoa(JSON.stringify({
+                    id: this.id,
+                    name: this.name,
+                    owner: this.owner,
+                    members: this.members,
+                    game_started: this.game_started,
+                    roles: this.roles,
+                    created_at: this.created_at
+                }));
+            }
+            
+            // Десериализовать из URL
+            static deserialize(encoded) {
                 try {
-                    room = JSON.parse(atob(roomData));
-                    showRoom();
-                } catch {
-                    showJoin();
+                    const data = JSON.parse(atob(encoded));
+                    const room = new Room(data.id, data.name, data.owner);
+                    room.members = data.members || [data.owner];
+                    room.game_started = data.game_started || false;
+                    room.roles = data.roles || {};
+                    room.created_at = data.created_at || new Date().toISOString();
+                    return room;
+                } catch (e) {
+                    console.error('Ошибка десериализации:', e);
+                    return null;
                 }
-            } else {
-                showCreate();
             }
         }
         
-        function showCreate() {
-            document.getElementById('app').innerHTML = `
-                <div class="room">
-                    <h1>Создать комнату</h1>
-                    <input id="roomName" placeholder="Название комнаты" value="Игра">
-                    <input id="creatorName" placeholder="Ваше имя">
-                    <button onclick="createRoom()">Создать</button>
-                </div>
-            `;
-        }
-        
-        function showJoin() {
-            document.getElementById('app').innerHTML = `
-                <div class="room">
-                    <h1>Войти в игру</h1>
-                    <p>Комната: ${room?.name || '?'}</p>
-                    <input id="playerName" placeholder="Ваше имя">
-                    <button onclick="joinRoom()">Войти</button>
-                </div>
-            `;
-        }
-        
-        function showRoom() {
-            const isCreator = myName === room.creator;
-            const myRole = room.roles?.[myName] || '';
-            const link = `${window.location.origin}${window.location.pathname}?r=${btoa(JSON.stringify(room))}`;
+        // === ИГРА ===
+        class BunkerGame {
+            constructor() {
+                this.app = document.getElementById('app');
+                this.room = null;
+                this.myName = '';
+                this.autoRefresh = null;
+            }
             
-            document.getElementById('app').innerHTML = `
-                <div class="room">
-                    <h1>${room.name}</h1>
-                    <p>Вы: ${myName} ${isCreator ? '👑' : ''}</p>
+            init() {
+                this.loadFromURL();
+            }
+            
+            // Загрузить из URL
+            loadFromURL() {
+                try {
+                    const params = new URLSearchParams(window.location.search);
+                    const roomData = params.get('room');
+                    const playerName = params.get('player');
                     
-                    <div class="link">${link.substring(0, 50)}...</div>
-                    <button onclick="copyLink('${link}')">Копировать ссылку</button>
-                    <button onclick="location.reload()">Обновить</button>
-                    
-                    ${isCreator && !room.gameStarted && room.players.length >= 2 ? 
-                        `<button onclick="startGame()">Начать игру (${room.players.length} игрока)</button>` : ''}
-                    
-                    ${myRole ? `<h2>Ваша роль: ${myRole}</h2>` : ''}
-                    
-                    <h3>Игроки (${room.players.length}/6):</h3>
-                    <div class="players">
-                        ${room.players.map(p => `
-                            <div class="player">
-                                ${p} ${p === room.creator ? '👑' : ''}
-                                ${room.gameStarted && room.roles?.[p] && (p === myName || isCreator) ? 
-                                    `<br><small>${room.roles[p]}</small>` : ''}
-                            </div>
-                        `).join('')}
+                    if (roomData) {
+                        // Загружаем комнату
+                        this.room = Room.deserialize(roomData);
+                        
+                        if (!this.room) {
+                            this.showError('Ошибка загрузки комнаты');
+                            return;
+                        }
+                        
+                        if (playerName) {
+                            // У нас есть имя игрока в URL
+                            this.myName = decodeURIComponent(playerName);
+                            
+                            // Добавляем игрока в комнату если его нет
+                            if (!this.room.members.includes(this.myName)) {
+                                this.room.addMember(this.myName);
+                                this.updateURL();
+                            }
+                            
+                            this.showRoom();
+                            this.startAutoRefresh();
+                        } else {
+                            // Нужно ввести имя
+                            this.showJoinForm();
+                        }
+                    } else {
+                        // Нет комнаты - показываем главную
+                        this.showMain();
+                    }
+                } catch (e) {
+                    console.error('Ошибка:', e);
+                    this.showError('Произошла ошибка');
+                }
+            }
+            
+            // Обновить URL с текущим состоянием
+            updateURL() {
+                if (!this.room || !this.myName) return;
+                
+                const roomData = this.room.serialize();
+                const newURL = `${window.location.origin}${window.location.pathname}?room=${roomData}&player=${encodeURIComponent(this.myName)}`;
+                window.history.replaceState({}, '', newURL);
+            }
+            
+            // Автоматическое обновление
+            startAutoRefresh() {
+                if (this.autoRefresh) clearInterval(this.autoRefresh);
+                
+                this.autoRefresh = setInterval(() => {
+                    this.loadFromURL();
+                }, 2000); // Обновлять каждые 2 секунды
+            }
+            
+            stopAutoRefresh() {
+                if (this.autoRefresh) {
+                    clearInterval(this.autoRefresh);
+                    this.autoRefresh = null;
+                }
+            }
+            
+            // === ОТОБРАЖЕНИЕ ===
+            
+            showError(message) {
+                this.app.innerHTML = `
+                    <div class="container">
+                        <div class="card">
+                            <h2>😕 Ошибка</h2>
+                            <div class="error">${message}</div>
+                            <button class="btn" onclick="game.showMain()">← На главную</button>
+                        </div>
                     </div>
-                </div>
-            `;
-            
-            // Автообновление каждые 5 секунд
-            setTimeout(() => {
-                if (room && myName) location.reload();
-            }, 5000);
-        }
-        
-        function createRoom() {
-            const roomName = document.getElementById('roomName').value || 'Игра';
-            const creatorName = document.getElementById('creatorName').value.trim();
-            
-            if (!creatorName) return alert('Введите имя!');
-            
-            room = {
-                id: Date.now(),
-                name: roomName,
-                creator: creatorName,
-                players: [creatorName],
-                roles: {},
-                gameStarted: false
-            };
-            
-            myName = creatorName;
-            updateURL();
-        }
-        
-        function joinRoom() {
-            const playerName = document.getElementById('playerName').value.trim();
-            if (!playerName) return alert('Введите имя!');
-            
-            if (room.players.includes(playerName)) {
-                return alert('Имя уже занято!');
+                `;
             }
             
-            if (room.players.length >= 6) {
-                return alert('Комната заполнена!');
+            showMain() {
+                this.stopAutoRefresh();
+                this.app.innerHTML = `
+                    <div class="header">
+                        <h1>🎮 БУНКЕР</h1>
+                        <p>Игра в роли с друзьями</p>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card">
+                            <h2>Создать комнату</h2>
+                            <input type="text" id="roomName" placeholder="Название комнаты" value="Моя игра">
+                            <input type="text" id="creatorName" placeholder="Ваше имя" required>
+                            <button class="btn" onclick="game.createRoom()">🎮 Создать комнату</button>
+                        </div>
+                    </div>
+                `;
             }
             
-            room.players.push(playerName);
-            myName = playerName;
-            updateURL();
-        }
-        
-        function startGame() {
-            if (room.players.length < 2) return alert('Нужно 2+ игрока!');
-            
-            // Раздаем роли
-            const shuffled = [...ROLES].sort(() => Math.random() - 0.5);
-            room.roles = {};
-            room.players.forEach((player, i) => {
-                if (i < shuffled.length) {
-                    room.roles[player] = shuffled[i];
+            showJoinForm() {
+                if (!this.room) {
+                    this.showMain();
+                    return;
                 }
-            });
+                
+                this.app.innerHTML = `
+                    <div class="header">
+                        <h1>🎮 Вас пригласили!</h1>
+                        <p>${this.room.name}</p>
+                    </div>
+                    
+                    <div class="container">
+                        <div class="card">
+                            <h2>Введите ваше имя</h2>
+                            <input type="text" id="playerName" placeholder="Ваш никнейм" required>
+                            <button class="btn" onclick="game.joinRoom()">🎮 Войти в комнату</button>
+                            <button class="btn btn-blue" onclick="game.showMain()">← Назад</button>
+                            <div id="joinError" style="display: none;" class="error"></div>
+                        </div>
+                        
+                        <div class="card">
+                            <h3>👥 В комнате (${this.room.members.length}/6)</h3>
+                            <div class="players">
+                                ${this.room.members.map(member => `
+                                    <div class="player ${member === this.room.owner ? 'creator' : ''}">
+                                        ${member} ${member === this.room.owner ? '👑' : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
             
-            room.gameStarted = true;
-            updateURL();
+            showRoom() {
+                if (!this.room || !this.myName) {
+                    this.showMain();
+                    return;
+                }
+                
+                const isOwner = this.myName === this.room.owner;
+                const myRole = this.room.roles[this.myName];
+                const roomLink = `${window.location.origin}${window.location.pathname}?room=${this.room.serialize()}`;
+                
+                this.app.innerHTML = `
+                    <div class="header">
+                        <h1>🎮 ${this.room.name}</h1>
+                        <p>Вы: ${this.myName} ${isOwner ? '👑' : ''}</p>
+                        <p>Игроков: ${this.room.members.length}/6 • ${this.room.game_started ? '🎮 Игра идет' : '⏳ Ожидание'}</p>
+                        <p><small>🔄 Автообновление каждые 2 секунды</small></p>
+                    </div>
+                    
+                    <div class="container">
+                        <!-- Ссылка для приглашения -->
+                        <div class="card">
+                            <h2>Ссылка для друзей</h2>
+                            <div class="link-box">${roomLink}</div>
+                            <button class="btn" onclick="game.copyLink('${roomLink}')">📋 Копировать ссылку</button>
+                            <button class="btn btn-blue" onclick="game.loadFromURL()">🔄 Обновить сейчас</button>
+                        </div>
+                        
+                        <!-- Управление игрой -->
+                        <div class="card">
+                            <h2>Управление игрой</h2>
+                            ${isOwner && !this.room.game_started && this.room.members.length >= 2 ? `
+                                <button class="btn" onclick="game.startGame()">🎮 Начать игру (${this.room.members.length} игрока)</button>
+                            ` : ''}
+                            
+                            ${isOwner && this.room.game_started ? `
+                                <button class="btn btn-red" onclick="game.resetGame()">🔄 Сбросить игру</button>
+                            ` : ''}
+                            
+                            ${this.room.game_started && myRole ? `
+                                <div class="role">
+                                    <h3>🎭 Ваша роль:</h3>
+                                    <h1>${myRole}</h1>
+                                </div>
+                            ` : ''}
+                            
+                            <button class="btn" onclick="game.leaveRoom()">🚪 Выйти из комнаты</button>
+                        </div>
+                        
+                        <!-- Список игроков -->
+                        <div class="card">
+                            <h2>👥 Игроки (${this.room.members.length}/6)</h2>
+                            <div class="players">
+                                ${this.room.members.map(member => {
+                                    const role = this.room.roles[member];
+                                    const isMe = member === this.myName;
+                                    return `
+                                        <div class="player ${member === this.room.owner ? 'creator' : ''}">
+                                            <strong>${member} ${isMe ? '(Вы)' : ''}</strong>
+                                            ${this.room.game_started && role && (isMe || isOwner) ? 
+                                                `<div style="color: #4CAF50;">${role}</div>` : 
+                                                this.room.game_started ? '<div style="color: #666;">Роль скрыта</div>' : ''
+                                            }
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // === МЕТОДЫ ===
+            
+            createRoom() {
+                const roomName = document.getElementById('roomName').value || 'Моя игра';
+                const creatorName = document.getElementById('creatorName').value.trim();
+                
+                if (!creatorName) {
+                    alert('Введите ваше имя!');
+                    return;
+                }
+                
+                // Создаем комнату
+                const roomId = 'room_' + Date.now();
+                this.room = new Room(roomId, roomName, creatorName);
+                this.myName = creatorName;
+                
+                // Обновляем URL
+                this.updateURL();
+                
+                // Показываем комнату
+                this.showRoom();
+                this.startAutoRefresh();
+                
+                // Показываем ссылку
+                setTimeout(() => {
+                    const link = `${window.location.origin}${window.location.pathname}?room=${this.room.serialize()}`;
+                    this.copyLink(link);
+                }, 500);
+            }
+            
+            joinRoom() {
+                const input = document.getElementById('playerName');
+                const errorDiv = document.getElementById('joinError');
+                
+                if (!input || !this.room) return;
+                
+                const playerName = input.value.trim();
+                if (!playerName) {
+                    errorDiv.textContent = 'Введите ваше имя!';
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+                
+                if (this.room.members.includes(playerName)) {
+                    errorDiv.textContent = 'Это имя уже занято!';
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+                
+                if (this.room.members.length >= 6) {
+                    errorDiv.textContent = 'Комната заполнена!';
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+                
+                // Добавляем игрока
+                this.myName = playerName;
+                this.room.addMember(playerName);
+                
+                // Обновляем URL
+                this.updateURL();
+                
+                // Переходим в комнату
+                this.showRoom();
+                this.startAutoRefresh();
+            }
+            
+            startGame() {
+                if (!this.room || this.myName !== this.room.owner) return;
+                
+                if (this.room.members.length < 2) {
+                    alert('Нужно минимум 2 игрока!');
+                    return;
+                }
+                
+                if (this.room.startGame()) {
+                    this.updateURL();
+                    this.showRoom();
+                    alert('🎮 Игра начата! Роли распределены.');
+                } else {
+                    alert('Ошибка начала игры!');
+                }
+            }
+            
+            resetGame() {
+                if (!this.room || this.myName !== this.room.owner) return;
+                
+                if (this.room.resetGame()) {
+                    this.updateURL();
+                    this.showRoom();
+                    alert('Игра сброшена!');
+                }
+            }
+            
+            leaveRoom() {
+                if (confirm('Выйти из комнаты?')) {
+                    if (this.room && this.myName) {
+                        this.room.removeMember(this.myName);
+                    }
+                    
+                    this.stopAutoRefresh();
+                    this.room = null;
+                    this.myName = '';
+                    this.showMain();
+                }
+            }
+            
+            copyLink(link) {
+                navigator.clipboard.writeText(link).then(() => {
+                    alert('✅ Ссылка скопирована!\n\nОтправьте её друзьям.');
+                }).catch(() => {
+                    prompt('Скопируйте ссылку:', link);
+                });
+            }
         }
         
-        function updateURL() {
-            const newURL = `${window.location.origin}${window.location.pathname}?r=${btoa(JSON.stringify(room))}`;
-            window.history.pushState({}, '', newURL);
-            showRoom();
-        }
+        // Создаем глобальный экземпляр игры
+        window.game = new BunkerGame();
         
-        function copyLink(link) {
-            navigator.clipboard.writeText(link).then(() => {
-                alert('Ссылка скопирована!');
-            });
-        }
-        
-        // Запуск
-        window.onload = init;
-        window.createRoom = createRoom;
-        window.joinRoom = joinRoom;
-        window.startGame = startGame;
-        window.copyLink = copyLink;
+        // Запускаем игру при загрузке
+        document.addEventListener('DOMContentLoaded', () => {
+            window.game.init();
+        });
     </script>
 </body>
 </html>
